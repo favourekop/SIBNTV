@@ -10,6 +10,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.0"
+    "firebase-admin": "^13.0.0"
   }
 }
