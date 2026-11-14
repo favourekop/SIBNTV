@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function myProfile() { return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data; }
+    function isAdmin() { return signedIn() && myProfile().role == 'admin'; }
+    function isCreator() { return signedIn() && myProfile().role in ['creator', 'admin']; }
+
+    match /profiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'viewer';
+      allow update: if signedIn() && (request.auth.uid == uid || isAdmin())
+        && request.resource.data.role == resource.data.role;
+      allow delete: if isAdmin();
+    }
+    match /titles/{titleId} {
+      allow read: if resource.data.status == 'published'
+        || (signedIn() && resource.data.creatorId == request.auth.uid) || isAdmin();
+      allow create: if isCreator() && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.status == 'draft';
+      allow update: if isAdmin() || (isCreator() && resource.data.creatorId == request.auth.uid
+        && request.resource.data.creatorId == resource.data.creatorId
+        && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+    match /creatorChannels/{channelId} {
+      allow read: if resource.data.status == 'approved' ||
+        (signedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow create: if isCreator() && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if isAdmin() || (isCreator() && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+    match /users/{uid}/watchlist/{titleId} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    match /users/{uid}/playbackHistory/{eventId} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    match /subscriptions/{subscriptionId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid || isAdmin();
+      allow write: if isAdmin();
+    }
+    match /mediaAssets/{assetId} {
+      allow read: if resource.data.visibility == 'public' ||
+        (signedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+      allow write: if isCreator() && request.resource.data.ownerId == request.auth.uid;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
