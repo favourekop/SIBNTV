@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function profileRole() {
+      return firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data.role;
+    }
+    function creatorOrAdmin() { return signedIn() && profileRole() in ['creator', 'admin']; }
+    match /creatorMedia/{uid}/{allPaths=**} {
+      allow read: if signedIn() && (request.auth.uid == uid || profileRole() == 'admin');
+      allow write: if creatorOrAdmin() && request.auth.uid == uid
+        && request.resource.size < 2147483648
+        && request.resource.contentType.matches('video/.*|image/.*');
+    }
+    match /publicArtwork/{allPaths=**} {
+      allow read: if true;
+      allow write: if signedIn() && profileRole() == 'admin'
+        && request.resource.size < 10485760
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
