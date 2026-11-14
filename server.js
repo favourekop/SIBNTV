@@ -12,28 +12,101 @@ const html = `<!doctype html>
 <section class="section" id="plans"><div class="banner"><div><div class="eyebrow">Your next watch awaits</div><h2 style="margin-top:8px">Entertainment without the endless search.</h2><p class="muted" style="margin:0;line-height:1.7">Plans and payments will be activated after billing provider credentials are configured.</p></div><button class="btn primary" onclick="alert('Subscription checkout is not connected yet. No payment has been taken.')">Get started</button></div></section>
 </main><footer class="footer"><span>© 2026 SIBNTV. Stories worth streaming.</span><span>Built for the next generation of entertainment.</span><span><a href="/health">Service health</a> · <a href="/api/catalog">Catalog API</a></span></footer>
 </body></html>`;
-const authUiTemplate = "\n<div id=\"authOverlay\" style=\"display:none;position:fixed;inset:0;z-index:20;background:#000b;backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center\">\n <section style=\"width:min(440px,100%);background:#111720;border:1px solid #ffffff22;border-radius:20px;padding:26px;box-shadow:0 24px 80px #000b\">\n  <div style=\"display:flex;justify-content:space-between;align-items:center\"><div class=\"brand\">SIBN<span>TV</span></div><button class=\"btn ghost\" onclick=\"closeAuth()\" aria-label=\"Close sign in\">✕</button></div>\n  <h2 id=\"authTitle\" style=\"margin:24px 0 8px\">Welcome back</h2><p id=\"authHint\" class=\"muted\" style=\"line-height:1.6\">Sign in to continue your SIBNTV journey.</p>\n  <form id=\"authForm\" style=\"display:grid;gap:12px;margin-top:20px\">\n   <label style=\"font-size:12px;color:#c4cbd4\">Email address<input id=\"authEmail\" type=\"email\" autocomplete=\"email\" required placeholder=\"you@example.com\" style=\"display:block;width:100%;margin-top:7px;padding:13px;border-radius:9px;background:#080b10;border:1px solid #34404d;color:white\"></label>\n   <label id=\"authNameWrap\" style=\"display:none;font-size:12px;color:#c4cbd4\">Full name<input id=\"authName\" type=\"text\" autocomplete=\"name\" placeholder=\"Your name\" style=\"display:block;width:100%;margin-top:7px;padding:13px;border-radius:9px;background:#080b10;border:1px solid #34404d;color:white\"></label>\n   <label style=\"font-size:12px;color:#c4cbd4\">Password<input id=\"authPassword\" type=\"password\" autocomplete=\"current-password\" minlength=\"8\" required placeholder=\"At least 8 characters\" style=\"display:block;width:100%;margin-top:7px;padding:13px;border-radius:9px;background:#080b10;border:1px solid #34404d;color:white\"></label>\n   <p id=\"authMessage\" role=\"status\" style=\"font-size:12px;line-height:1.5;color:#b7f34a;min-height:16px\"></p>\n   <button id=\"authSubmit\" class=\"btn primary\" type=\"submit\">Sign in</button>\n  </form>\n  <p style=\"font-size:13px;color:#aab5c2;margin-top:18px\"><span id=\"authSwitchText\">New to SIBNTV?</span> <button id=\"authSwitch\" class=\"btn\" style=\"padding:0;background:none;color:#b7f34a\" type=\"button\" onclick=\"switchAuthMode()\">Create an account</button></p>\n  <p class=\"muted\" style=\"font-size:11px;line-height:1.6\">Authentication is provided by Supabase once the project's public URL and publishable/anon key are configured in Render Environment.</p>\n </section>\n</div>\n<script src=\"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2\"></script>\n<script>\nconst SUPABASE_URL = \"__SUPABASE_URL__\";\nconst SUPABASE_ANON_KEY = \"__SUPABASE_ANON_KEY__\";\nlet supabaseClient = null, authMode = 'signin';\nif (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);\nfunction openAuth(mode='signin') {\n authMode=mode;document.getElementById('authOverlay').style.display='flex';document.getElementById('authMessage').textContent='';\n document.getElementById('authTitle').textContent=mode==='signup'?'Create your account':'Welcome back';\n document.getElementById('authHint').textContent=mode==='signup'?'Join SIBNTV and discover your next favourite story.':'Sign in to continue your SIBNTV journey.';\n document.getElementById('authNameWrap').style.display=mode==='signup'?'block':'none';document.getElementById('authName').required=mode==='signup';\n document.getElementById('authSubmit').textContent=mode==='signup'?'Create account':'Sign in';\n document.getElementById('authSwitchText').textContent=mode==='signup'?'Already have an account?':'New to SIBNTV?';\n document.getElementById('authSwitch').textContent=mode==='signup'?'Sign in':'Create an account';\n document.getElementById('authPassword').autocomplete=mode==='signup'?'new-password':'current-password';\n if(!supabaseClient)document.getElementById('authMessage').textContent='Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in Render Environment to enable real sign-in.';\n}\nfunction closeAuth(){document.getElementById('authOverlay').style.display='none'}\nfunction switchAuthMode(){openAuth(authMode==='signup'?'signin':'signup')}\ndocument.getElementById('authOverlay').addEventListener('click',e=>{if(e.target.id==='authOverlay')closeAuth()});\ndocument.getElementById('authForm').addEventListener('submit',async e=>{\n e.preventDefault();const msg=document.getElementById('authMessage');\n if(!supabaseClient){msg.textContent='Authentication is waiting for the Supabase project URL and public anon/publishable key.';return}\n const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;\n const submit=document.getElementById('authSubmit');submit.disabled=true;submit.textContent='Please wait…';\n try{let result;if(authMode==='signup')result=await supabaseClient.auth.signUp({email,password,options:{data:{full_name:document.getElementById('authName').value.trim()}}});else result=await supabaseClient.auth.signInWithPassword({email,password});\n if(result.error)throw result.error;msg.textContent=authMode==='signup'?'Account request created. Check your email if confirmation is enabled.':'Signed in successfully. Welcome to SIBNTV!';\n }catch(err){msg.textContent=err.message||'Authentication failed. Please try again.'}\n finally{submit.disabled=false;submit.textContent=authMode==='signup'?'Create account':'Sign in'}\n});\nif(supabaseClient){\n supabaseClient.auth.getSession().then(({data})=>{if(data.session){const btn=document.querySelector('.actions .ghost');if(btn){btn.textContent='Account';btn.onclick=()=>{if(confirm('Sign out of SIBNTV?'))supabaseClient.auth.signOut().then(()=>location.reload())}}}});\n supabaseClient.auth.onAuthStateChange((_event,session)=>{const btn=document.querySelector('.actions .ghost');if(btn){btn.textContent=session?'Account':'Sign in';btn.onclick=session?()=>{if(confirm('Sign out of SIBNTV?'))supabaseClient.auth.signOut().then(()=>location.reload())}:()=>openAuth('signin')}});\n}\n</script>";
-const authUi = authUiTemplate.replace('"__SUPABASE_URL__"', JSON.stringify(process.env.SUPABASE_URL || "")).replace('"__SUPABASE_ANON_KEY__"', JSON.stringify(process.env.SUPABASE_ANON_KEY || ""));
-const htmlWithAuth = html.replace("</body>", authUi + "<div id=\"titleDetailOverlay\" class=\"detailOverlay\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Title details\"><section class=\"detailPanel\"><div style=\"display:flex;justify-content:space-between;align-items:center\"><span class=\"eyebrow\">SIBNTV TITLE</span><button class=\"btn ghost\" id=\"closeTitleDetail\" type=\"button\">✕</button></div><h2 id=\"detailTitle\">Title</h2><p id=\"detailMeta\"></p><p id=\"detailDescription\"></p><button class=\"btn primary\" id=\"detailSave\" type=\"button\">♡ Add to My List</button></section></div><script>(function(){const cards=Array.from(document.querySelectorAll(\"#discover .card\"));const search=document.getElementById(\"catalogSearch\"),category=document.getElementById(\"catalogCategory\"),myListBtn=document.getElementById(\"showMyList\");const overlay=document.getElementById(\"titleDetailOverlay\"),savedKey=\"sibntv_my_list_v1\";let listOnly=false,currentCard=null;function readList(){try{return JSON.parse(localStorage.getItem(savedKey)||\"[]\")}catch(e){return []}}function writeList(items){localStorage.setItem(savedKey,JSON.stringify(items))}function titleOf(card){return card.querySelector(\".cardbody strong\")?.textContent.trim()||\"SIBNTV title\"}function categoryOf(card){return (card.querySelector(\".poster span\")?.textContent||\"\").toLowerCase()}function updateCards(){const q=(search?.value||\"\").trim().toLowerCase(),cat=category?.value||\"all\",saved=readList();let visible=0;cards.forEach(card=>{const title=titleOf(card),meta=card.querySelector(\".cardbody p\")?.textContent||\"\",kind=categoryOf(card),matches=(!q||(title+\" \"+meta+\" \"+kind).toLowerCase().includes(q))&&(cat===\"all\"||kind.includes(cat))&&(!listOnly||saved.includes(title));card.style.display=matches?\"\":\"none\";if(matches)visible++;const b=card.querySelector(\"[data-save-title]\");if(b){const isSaved=saved.includes(title);b.classList.toggle(\"saved\",isSaved);b.textContent=isSaved?\"✓ In My List\":\"♡ My List\"}});let empty=document.getElementById(\"catalogEmpty\");if(!empty){empty=document.createElement(\"div\");empty.id=\"catalogEmpty\";empty.className=\"emptyState\";empty.textContent=\"No titles match those filters yet.\";document.querySelector(\"#discover .cards\")?.after(empty)}empty.style.display=visible?\"none\":\"block\";if(myListBtn)myListBtn.textContent=listOnly?\"← All titles · My List\":\"♡ My List\"}function showDetails(card){currentCard=card;const title=titleOf(card);document.getElementById(\"detailTitle\").textContent=title;document.getElementById(\"detailMeta\").textContent=card.querySelector(\".cardbody p\")?.textContent||\"SIBNTV\";document.getElementById(\"detailDescription\").textContent=\"Explore \"+title+\", selected for the SIBNTV preview catalogue. Full playback and verified title information will be connected when the content delivery system is integrated.\";const saved=readList().includes(title);document.getElementById(\"detailSave\").textContent=saved?\"✓ Remove from My List\":\"♡ Add to My List\";overlay.style.display=\"flex\"}cards.forEach(card=>{const body=card.querySelector(\".cardbody\");if(!body)return;const title=titleOf(card);const actions=document.createElement(\"div\");actions.className=\"cardActions\";actions.innerHTML='<button class=\"miniBtn\" type=\"button\" data-details>View details</button><button class=\"miniBtn\" type=\"button\" data-save-title>';body.appendChild(actions);actions.querySelector(\"[data-details]\").addEventListener(\"click\",()=>showDetails(card));actions.querySelector(\"[data-save-title]\").addEventListener(\"click\",()=>{let saved=readList();if(saved.includes(title))saved=saved.filter(x=>x!==title);else saved.push(title);writeList(saved);updateCards()})});search?.addEventListener(\"input\",()=>{listOnly=false;updateCards()});category?.addEventListener(\"change\",()=>{listOnly=false;updateCards()});myListBtn?.addEventListener(\"click\",()=>{listOnly=!listOnly;updateCards();document.querySelector(\"#discover\")?.scrollIntoView({behavior:\"smooth\"})});document.getElementById(\"closeTitleDetail\")?.addEventListener(\"click\",()=>overlay.style.display=\"none\");overlay?.addEventListener(\"click\",e=>{if(e.target===overlay)overlay.style.display=\"none\"});document.addEventListener(\"keydown\",e=>{if(e.key===\"Escape\"&&overlay)overlay.style.display=\"none\"});document.getElementById(\"detailSave\")?.addEventListener(\"click\",()=>{if(!currentCard)return;const title=titleOf(currentCard);let saved=readList();if(saved.includes(title))saved=saved.filter(x=>x!==title);else saved.push(title);writeList(saved);showDetails(currentCard);updateCards()});updateCards();})();</script>" + "</body>");
-const { createClient } = require("@supabase/supabase-js");
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
-const supabaseReady = Boolean(supabaseUrl && supabaseAnonKey);
-function userSupabase(req) {
-  const authorization = req.headers.get("authorization") || "";
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: authorization ? { headers: { Authorization: authorization } } : {}
-  });
+const authUiTemplate = `
+<div id="authOverlay" style="display:none;position:fixed;inset:0;z-index:20;background:#000b;backdrop-filter:blur(8px);padding:18px;align-items:center;justify-content:center">
+ <section style="width:min(440px,100%);background:#111720;border:1px solid #ffffff22;border-radius:20px;padding:26px;box-shadow:0 24px 80px #000b">
+  <div style="display:flex;justify-content:space-between;align-items:center"><div class="brand">SIBN<span>TV</span></div><button class="btn ghost" onclick="closeAuth()" aria-label="Close sign in">✕</button></div>
+  <h2 id="authTitle" style="margin:24px 0 8px">Welcome back</h2><p id="authHint" class="muted" style="line-height:1.6">Sign in to continue your SIBNTV journey.</p>
+  <form id="authForm" style="display:grid;gap:12px;margin-top:20px">
+   <label style="font-size:12px;color:#c4cbd4">Email address<input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com" style="display:block;width:100%;margin-top:7px;padding:13px;border-radius:9px;background:#080b10;border:1px solid #34404d;color:white"></label>
+   <label id="authNameWrap" style="display:none;font-size:12px;color:#c4cbd4">Full name<input id="authName" type="text" autocomplete="name" placeholder="Your name" style="display:block;width:100%;margin-top:7px;padding:13px;border-radius:9px;background:#080b10;border:1px solid #34404d;color:white"></label>
+   <label style="font-size:12px;color:#c4cbd4">Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters" style="display:block;width:100%;margin-top:7px;padding:13px;border-radius:9px;background:#080b10;border:1px solid #34404d;color:white"></label>
+   <p id="authMessage" role="status" style="font-size:12px;line-height:1.5;color:#b7f34a;min-height:16px"></p>
+   <button id="authSubmit" class="btn primary" type="submit">Sign in</button>
+  </form>
+  <p style="font-size:13px;color:#aab5c2;margin-top:18px"><span id="authSwitchText">New to SIBNTV?</span> <button id="authSwitch" class="btn" style="padding:0;background:none;color:#b7f34a" type="button" onclick="switchAuthMode()">Create an account</button></p>
+  <p class="muted" style="font-size:11px;line-height:1.6">Secure account access powered by Firebase Authentication.</p>
+ </section>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+const FIREBASE_CONFIG = __FIREBASE_CONFIG__;
+let firebaseAuth = null, authMode = 'signin';
+try { if (window.firebase && FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey) { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); firebaseAuth = firebase.auth(); } } catch (e) { console.error('Firebase initialization failed', e); }
+function openAuth(mode='signin') {
+ authMode=mode;document.getElementById('authOverlay').style.display='flex';document.getElementById('authMessage').textContent='';
+ document.getElementById('authTitle').textContent=mode==='signup'?'Create your account':'Welcome back';
+ document.getElementById('authHint').textContent=mode==='signup'?'Join SIBNTV and discover your next favourite story.':'Sign in to continue your SIBNTV journey.';
+ document.getElementById('authNameWrap').style.display=mode==='signup'?'block':'none';document.getElementById('authName').required=mode==='signup';
+ document.getElementById('authSubmit').textContent=mode==='signup'?'Create account':'Sign in';
+ document.getElementById('authSwitchText').textContent=mode==='signup'?'Already have an account?':'New to SIBNTV?';
+ document.getElementById('authSwitch').textContent=mode==='signup'?'Sign in':'Create an account';
+ document.getElementById('authPassword').autocomplete=mode==='signup'?'new-password':'current-password';
+ if(!firebaseAuth)document.getElementById('authMessage').textContent='Firebase is not configured yet. Add the Firebase web configuration in Render Environment.';
 }
+function closeAuth(){document.getElementById('authOverlay').style.display='none'}
+function switchAuthMode(){openAuth(authMode==='signup'?'signin':'signup')}
+document.getElementById('authOverlay').addEventListener('click',e=>{if(e.target.id==='authOverlay')closeAuth()});
+document.getElementById('authForm').addEventListener('submit',async e=>{
+ e.preventDefault();const msg=document.getElementById('authMessage');
+ if(!firebaseAuth){msg.textContent='Firebase configuration is missing. Sign-in is unavailable until configured.';return}
+ const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;
+ const submit=document.getElementById('authSubmit');submit.disabled=true;submit.textContent='Please wait…';
+ try {
+  let result;
+  if(authMode==='signup'){result=await firebaseAuth.createUserWithEmailAndPassword(email,password);await result.user.updateProfile({displayName:document.getElementById('authName').value.trim()});await result.user.getIdToken(true);msg.textContent='Your SIBNTV account has been created.';}
+  else {result=await firebaseAuth.signInWithEmailAndPassword(email,password);msg.textContent='Signed in successfully. Welcome to SIBNTV!';}
+  setTimeout(closeAuth,900);
+ } catch(err){msg.textContent=err.message||'Authentication failed. Please try again.'}
+ finally{submit.disabled=false;submit.textContent=authMode==='signup'?'Create account':'Sign in'}
+});
+if(firebaseAuth){
+ firebaseAuth.onAuthStateChanged(async user=>{
+  const btn=document.querySelector('.actions .ghost');
+  if(btn){btn.textContent=user?'Account':'Sign in';btn.onclick= user ? async()=>{if(confirm('Sign out of SIBNTV?')){await firebaseAuth.signOut();location.reload()}} : ()=>openAuth('signin');}
+  if(user){try{const token=await user.getIdToken();await fetch('/api/me',{headers:{Authorization:'Bearer '+token}})}catch(e){console.warn('Profile sync pending',e)}}
+ });
+}
+</script>`;
+const authUi = authUiTemplate.replace("__FIREBASE_CONFIG__", JSON.stringify(firebaseWebConfig));
+const htmlWithAuth = html.replace("</body>", authUi + "<div id=\"titleDetailOverlay\" class=\"detailOverlay\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Title details\"><section class=\"detailPanel\"><div style=\"display:flex;justify-content:space-between;align-items:center\"><span class=\"eyebrow\">SIBNTV TITLE</span><button class=\"btn ghost\" id=\"closeTitleDetail\" type=\"button\">✕</button></div><h2 id=\"detailTitle\">Title</h2><p id=\"detailMeta\"></p><p id=\"detailDescription\"></p><button class=\"btn primary\" id=\"detailSave\" type=\"button\">♡ Add to My List</button></section></div><script>(function(){const cards=Array.from(document.querySelectorAll(\"#discover .card\"));const search=document.getElementById(\"catalogSearch\"),category=document.getElementById(\"catalogCategory\"),myListBtn=document.getElementById(\"showMyList\");const overlay=document.getElementById(\"titleDetailOverlay\"),savedKey=\"sibntv_my_list_v1\";let listOnly=false,currentCard=null;function readList(){try{return JSON.parse(localStorage.getItem(savedKey)||\"[]\")}catch(e){return []}}function writeList(items){localStorage.setItem(savedKey,JSON.stringify(items))}function titleOf(card){return card.querySelector(\".cardbody strong\")?.textContent.trim()||\"SIBNTV title\"}function categoryOf(card){return (card.querySelector(\".poster span\")?.textContent||\"\").toLowerCase()}function updateCards(){const q=(search?.value||\"\").trim().toLowerCase(),cat=category?.value||\"all\",saved=readList();let visible=0;cards.forEach(card=>{const title=titleOf(card),meta=card.querySelector(\".cardbody p\")?.textContent||\"\",kind=categoryOf(card),matches=(!q||(title+\" \"+meta+\" \"+kind).toLowerCase().includes(q))&&(cat===\"all\"||kind.includes(cat))&&(!listOnly||saved.includes(title));card.style.display=matches?\"\":\"none\";if(matches)visible++;const b=card.querySelector(\"[data-save-title]\");if(b){const isSaved=saved.includes(title);b.classList.toggle(\"saved\",isSaved);b.textContent=isSaved?\"✓ In My List\":\"♡ My List\"}});let empty=document.getElementById(\"catalogEmpty\");if(!empty){empty=document.createElement(\"div\");empty.id=\"catalogEmpty\";empty.className=\"emptyState\";empty.textContent=\"No titles match those filters yet.\";document.querySelector(\"#discover .cards\")?.after(empty)}empty.style.display=visible?\"none\":\"block\";if(myListBtn)myListBtn.textContent=listOnly?\"← All titles · My List\":\"♡ My List\"}function showDetails(card){currentCard=card;const title=titleOf(card);document.getElementById(\"detailTitle\").textContent=title;document.getElementById(\"detailMeta\").textContent=card.querySelector(\".cardbody p\")?.textContent||\"SIBNTV\";document.getElementById(\"detailDescription\").textContent=\"Explore \"+title+\", selected for the SIBNTV preview catalogue. Full playback and verified title information will be connected when the content delivery system is integrated.\";const saved=readList().includes(title);document.getElementById(\"detailSave\").textContent=saved?\"✓ Remove from My List\":\"♡ Add to My List\";overlay.style.display=\"flex\"}cards.forEach(card=>{const body=card.querySelector(\".cardbody\");if(!body)return;const title=titleOf(card);const actions=document.createElement(\"div\");actions.className=\"cardActions\";actions.innerHTML='<button class=\"miniBtn\" type=\"button\" data-details>View details</button><button class=\"miniBtn\" type=\"button\" data-save-title>';body.appendChild(actions);actions.querySelector(\"[data-details]\").addEventListener(\"click\",()=>showDetails(card));actions.querySelector(\"[data-save-title]\").addEventListener(\"click\",()=>{let saved=readList();if(saved.includes(title))saved=saved.filter(x=>x!==title);else saved.push(title);writeList(saved);updateCards()})});search?.addEventListener(\"input\",()=>{listOnly=false;updateCards()});category?.addEventListener(\"change\",()=>{listOnly=false;updateCards()});myListBtn?.addEventListener(\"click\",()=>{listOnly=!listOnly;updateCards();document.querySelector(\"#discover\")?.scrollIntoView({behavior:\"smooth\"})});document.getElementById(\"closeTitleDetail\")?.addEventListener(\"click\",()=>overlay.style.display=\"none\");overlay?.addEventListener(\"click\",e=>{if(e.target===overlay)overlay.style.display=\"none\"});document.addEventListener(\"keydown\",e=>{if(e.key===\"Escape\"&&overlay)overlay.style.display=\"none\"});document.getElementById(\"detailSave\")?.addEventListener(\"click\",()=>{if(!currentCard)return;const title=titleOf(currentCard);let saved=readList();if(saved.includes(title))saved=saved.filter(x=>x!==title);else saved.push(title);writeList(saved);showDetails(currentCard);updateCards()});updateCards();})();</script>" + "</body>");
+const admin = require("firebase-admin");
+let firebaseReady = false, firestore = null;
+try {
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "";
+  if (rawServiceAccount) {
+    let serviceAccount;
+    try { serviceAccount = JSON.parse(rawServiceAccount); }
+    catch { serviceAccount = JSON.parse(Buffer.from(rawServiceAccount, "base64").toString("utf8")); }
+    if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(serviceAccount), storageBucket: process.env.FIREBASE_STORAGE_BUCKET || undefined });
+    firestore = admin.firestore();
+    firebaseReady = true;
+  }
+} catch (error) { console.error("Firebase Admin initialization failed:", error.message); }
+const firebaseWebConfig = {
+  apiKey: process.env.FIREBASE_API_KEY || "",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.FIREBASE_APP_ID || ""
+};
+const firebaseWebReady = Boolean(firebaseWebConfig.apiKey && firebaseWebConfig.projectId && firebaseWebConfig.appId);
 async function requireUser(req) {
-  if (!supabaseReady) return { error: "Supabase is not configured on this service.", status: 503 };
+  if (!firebaseReady) return { error: "Firebase Admin is not configured on this service.", status: 503 };
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "");
   if (!token) return { error: "Sign in is required.", status: 401 };
-  const client = userSupabase(req);
-  const { data, error } = await client.auth.getUser(token);
-  if (error || !data.user) return { error: "Your session is invalid or expired.", status: 401 };
-  return { client, user: data.user };
+  try { const decoded = await admin.auth().verifyIdToken(token); return { user: decoded }; }
+  catch { return { error: "Your session is invalid or expired.", status: 401 }; }
+}
+async function getProfile(uid) {
+  const ref = firestore.collection("profiles").doc(uid);
+  const snap = await ref.get();
+  if (snap.exists) return snap.data();
+  const profile = { displayName: "", avatarUrl: "", role: "viewer", createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+  await ref.create(profile);
+  return { ...profile, createdAt: null, updatedAt: null };
 }
 const handler = async (req) => {
   const url = new URL(req.url);
@@ -46,45 +119,45 @@ const handler = async (req) => {
   ]; const q=(url.searchParams.get("search")||"").toLowerCase(); const category=(url.searchParams.get("category")||"").toLowerCase(); const filtered=items.filter(x=>(!q||(x.title+" "+x.category+" "+x.type).toLowerCase().includes(q))&&(!category||x.category.toLowerCase()===category||x.type.toLowerCase()===category)); return Response.json({items:filtered,total:filtered.length,note:"Sample catalogue only; production media catalogue not connected."}); }
   if (url.pathname === "/api/live") return Response.json({items:[],status:"not_configured",note:"Live broadcast provider and creator ingest are not connected yet."});
   if (url.pathname === "/api/plans") return Response.json({items:[{id:"free-preview",name:"Preview",price:0,currency:"NGN",status:"preview_only"}],status:"billing_not_configured",note:"Checkout is disabled until a billing provider is configured."});
-  if (url.pathname === "/api/creator/dashboard") return Response.json({role:"CREATOR",status:"preview_only",metrics:{publishedTitles:0,processingTitles:0,liveChannels:0,totalViews:0},note:"Preview contract only; persistence and authorization are not connected."});
-  if (url.pathname === "/api/admin/dashboard") return Response.json({role:"ADMIN",status:"preview_only",metrics:{totalUsers:0,totalTitles:4,pendingReview:0,activeStreams:0},note:"Preview contract only; server-side role authorization is not connected."});
-  if (url.pathname === "/api/config") return Response.json({supabaseConfigured:supabaseReady,authProvider:"supabase"});
+  if (url.pathname === "/api/creator/dashboard") {
+    const auth = await requireUser(req); if (auth.error) return Response.json({error:auth.error},{status:auth.status});
+    const profile = await getProfile(auth.user.uid); if (!["creator","admin"].includes(profile.role)) return Response.json({error:"Creator access is required."},{status:403});
+    const snap = await firestore.collection("titles").where("creatorId","==",auth.user.uid).get();
+    const titles = snap.docs.map(d=>d.data());
+    return Response.json({role:profile.role,status:"connected",metrics:{publishedTitles:titles.filter(x=>x.status==="published").length,processingTitles:titles.filter(x=>x.status==="processing").length,liveChannels:0,totalViews:0}});
+  }
+  if (url.pathname === "/api/admin/dashboard") {
+    const auth = await requireUser(req); if (auth.error) return Response.json({error:auth.error},{status:auth.status});
+    const profile = await getProfile(auth.user.uid); if (profile.role !== "admin") return Response.json({error:"Administrator access is required."},{status:403});
+    const [users,titles] = await Promise.all([firestore.collection("profiles").get(),firestore.collection("titles").get()]);
+    return Response.json({role:"ADMIN",status:"connected",metrics:{totalUsers:users.size,totalTitles:titles.size,pendingReview:titles.docs.filter(d=>d.data().status==="in_review").length,activeStreams:0}});
+  }
+  if (url.pathname === "/api/config") return Response.json({firebaseWebConfigured:firebaseWebReady,firebaseAdminConfigured:firebaseReady,authProvider:"firebase"});
   if (url.pathname === "/api/me" && req.method === "GET") {
-    const auth = await requireUser(req);
-    if (auth.error) return Response.json({error:auth.error},{status:auth.status});
-    const { data: profile, error } = await auth.client.from("profiles").select("id,display_name,avatar_url,role,created_at").eq("id",auth.user.id).maybeSingle();
-    if (error) return Response.json({error:"Could not load your profile."},{status:500});
-    return Response.json({user:{id:auth.user.id,email:auth.user.email},profile});
+    const auth = await requireUser(req); if (auth.error) return Response.json({error:auth.error},{status:auth.status});
+    try { const profile = await getProfile(auth.user.uid); return Response.json({user:{id:auth.user.uid,email:auth.user.email},profile}); }
+    catch (error) { console.error("Profile load failed",error); return Response.json({error:"Could not load your profile."},{status:500}); }
   }
   if (url.pathname === "/api/content" && req.method === "GET") {
-    if (!supabaseReady) return Response.json({error:"Persistent catalogue is not configured yet.",mode:"preview"},{status:503});
-    const client = userSupabase(req);
-    const { data, error } = await client.from("titles").select("id,title,slug,synopsis,category,content_type,poster_url,trailer_url,duration_seconds,release_year,featured,published_at,status").eq("status","published").order("published_at",{ascending:false}).limit(100);
-    if (error) return Response.json({error:"Could not load the catalogue."},{status:502});
-    return Response.json({items:data,total:data.length,source:"supabase"});
+    if (!firebaseReady) return Response.json({error:"Firebase Admin is not configured yet.",mode:"preview"},{status:503});
+    try {
+      const snap = await firestore.collection("titles").where("status","==","published").orderBy("publishedAt","desc").limit(100).get();
+      const items = snap.docs.map(d=>({id:d.id,...d.data()}));
+      return Response.json({items,total:items.length,source:"firestore"});
+    } catch (error) { console.error("Catalogue query failed",error); return Response.json({error:"Could not load the catalogue."},{status:502}); }
   }
   if (url.pathname === "/api/content" && req.method === "POST") {
-    const auth = await requireUser(req);
-    if (auth.error) return Response.json({error:auth.error},{status:auth.status});
-    const { data: profile, error: profileError } = await auth.client.from("profiles").select("role").eq("id",auth.user.id).single();
-    if (profileError || !["creator","admin"].includes(profile?.role)) return Response.json({error:"Creator access is required."},{status:403});
-    let body;
-    try { body = await req.json(); } catch { return Response.json({error:"A valid JSON body is required."},{status:400}); }
+    const auth = await requireUser(req); if (auth.error) return Response.json({error:auth.error},{status:auth.status});
+    let body; try { body = await req.json(); } catch { return Response.json({error:"A valid JSON body is required."},{status:400}); }
     const title = String(body.title || "").trim();
     if (!title || title.length > 180) return Response.json({error:"Title is required and must be under 180 characters."},{status:400});
-    const payload = {
-      creator_id:auth.user.id,title,
-      synopsis:String(body.synopsis || "").slice(0,5000),
-      category:String(body.category || "Drama").slice(0,60),
-      content_type:["film","series","documentary","short"].includes(body.content_type) ? body.content_type : "film",
-      poster_url:body.poster_url || null,
-      trailer_url:body.trailer_url || null,
-      release_year:Number.isInteger(body.release_year) ? body.release_year : null,
-      status:"draft"
-    };
-    const { data, error } = await auth.client.from("titles").insert(payload).select().single();
-    if (error) return Response.json({error:"Could not create the draft title."},{status:502});
-    return Response.json({item:data}, {status:201});
+    try {
+      const profile = await getProfile(auth.user.uid);
+      if (!["creator","admin"].includes(profile.role)) return Response.json({error:"Creator access is required."},{status:403});
+      const item = {creatorId:auth.user.uid,title,synopsis:String(body.synopsis||"").slice(0,5000),category:String(body.category||"Drama").slice(0,60),contentType:["film","series","documentary","short","live"].includes(body.contentType)?body.contentType:"film",posterUrl:body.posterUrl||null,trailerUrl:body.trailerUrl||null,releaseYear:Number.isInteger(body.releaseYear)?body.releaseYear:null,status:"draft",createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()};
+      const ref = await firestore.collection("titles").add(item);
+      return Response.json({item:{id:ref.id,...item}}, {status:201});
+    } catch (error) { console.error("Draft creation failed",error); return Response.json({error:"Could not create the draft title."},{status:502}); }
   }
   if (url.pathname === "/creator") return new Response("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>SIBNTV Creator Studio</title><style>body{margin:0;background:#090d12;color:#f5f7fa;font:16px system-ui;padding:clamp(20px,5vw,64px)}main{max-width:900px;margin:auto}.eyebrow{color:#b7f34a;text-transform:uppercase;letter-spacing:.16em;font-size:11px}h1{font-size:clamp(32px,6vw,54px);margin:12px 0}p{color:#aab5c2;line-height:1.7}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:26px 0}.tile{border:1px solid #27313d;background:#111720;padding:20px;border-radius:14px}.tile strong{display:block;font-size:26px;margin-top:8px}.notice{border-left:3px solid #b7f34a;padding:12px 16px;background:#111720;color:#aab5c2}.button{display:inline-block;color:#090d12;background:#b7f34a;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;margin-top:12px}</style></head><body><main><div class=\"eyebrow\">SIBNTV · CREATOR WORKSPACE</div><h1>Creator Studio</h1><p>Prepare titles for publishing, organize metadata and track review status.</p><div class=\"grid\"><div class=\"tile\">Published titles<strong>0</strong></div><div class=\"tile\">Processing uploads<strong>0</strong></div><div class=\"tile\">Channel status<strong>Preview</strong></div></div><div class=\"notice\"><b>Preview workspace.</b> Sign-in, role checks, uploads and persistent changes are not connected yet. Do not upload private media here.</div><a class=\"button\" href=\"/\">← Back to SIBNTV</a></main></body></html>",{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}});
   if (url.pathname === "/admin") return new Response("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>SIBNTV Admin Console</title><style>body{margin:0;background:#090d12;color:#f5f7fa;font:16px system-ui;padding:clamp(20px,5vw,64px)}main{max-width:900px;margin:auto}.eyebrow{color:#b7f34a;text-transform:uppercase;letter-spacing:.16em;font-size:11px}h1{font-size:clamp(32px,6vw,54px);margin:12px 0}p{color:#aab5c2;line-height:1.7}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:26px 0}.tile{border:1px solid #27313d;background:#111720;padding:20px;border-radius:14px}.tile strong{display:block;font-size:26px;margin-top:8px}.notice{border-left:3px solid #b7f34a;padding:12px 16px;background:#111720;color:#aab5c2}.button{display:inline-block;color:#090d12;background:#b7f34a;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;margin-top:12px}</style></head><body><main><div class=\"eyebrow\">SIBNTV · ADMIN WORKSPACE</div><h1>Admin Console</h1><p>Review the catalogue, prepare moderation workflows and monitor platform activity.</p><div class=\"grid\"><div class=\"tile\">Catalogue titles<strong>4</strong></div><div class=\"tile\">Pending reviews<strong>0</strong></div><div class=\"tile\">Channel status<strong>Preview</strong></div></div><div class=\"notice\"><b>Preview workspace.</b> Sign-in, server-side role checks and persistent changes are not connected yet. Do not treat this page as a secured admin panel. Do not upload private media here.</div><a class=\"button\" href=\"/\">← Back to SIBNTV</a></main></body></html>",{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}});
